@@ -1,0 +1,2597 @@
+post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy vpost, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy post, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy vvvvpost, we will look at the properties of these 4 formats — CSV, JSON, Parquet, and Avro using Apache Spark.
+
+CSV
+CSV files (comma-separated values) usually exchange tabular data between systems using plain text. CSV is a row-based file format, which means that each row of the file is a row in the table. Essentially, CSV contains a header row that contains column names for the data, otherwise, files are considered partially structured. CSV files may not initially contain hierarchical or relational data. Data connections are usually established using multiple CSV files. Foreign keys are stored in columns of one or more files, but connections between these files are not expressed by the format itself. In addition, the CSV format is not fully standardized, and files may use separators other than commas, such as tabs or spaces.
+
+One of the other properties of CSV files is that they are only splittable when it is a raw, uncompressed file or when splittable compression format is used such as bzip2 or lzo (note: lzo needs to be indexed to be splittable).
+
+Pros and cons of the format:
+
+➕ CSV is human-readable and easy to edit manually;
+
+➕ CSV provides a simple scheme;
+
+➕ CSV can be processed by almost all existing applications;
+
+➕ CSV is easy to implement and parse;
+
+➕ CSV is compact. For XML, you start a tag and end a tag for each column in each row. In CSV, the column headers are written only once;
+
+➖ CSV allows you to work with flat data. Complex data structures have to be processed separately from the format;
+
+➖ No support for column types. No difference between text and numeric columns;
+
+➖ There is no standard way to present binary data;
+
+➖ Problems with CSV import (for example, no difference between NULL and quotes);
+
+➖ Poor support for special characters;
+
+➖ Lack of a universal standard.
+
+Despite limitations and problems, CSV files are a popular choice for data exchange as they are supported by a wide range of business, consumer, and scientific applications. Similarly, most batch and streaming frameworks (e.g. Spark and MR) initially support serialization and deserialization of CSV files and offer ways to add a schema while reading.
+
+JSON
+JSON (JavaScript object notation) data are presented as key-value pairs in a partially structured format. JSON is often compared to XML because it can store data in a hierarchical format. Both formats are user-readable, but JSON documents are typically much smaller than XML. They are therefore more commonly used in network communication, especially with the rise of REST-based web services.
+
+Since much data is already transmitted in JSON format, most web languages initially support JSON. With this huge support, JSON is used to represent data structures, and exchange formats for hot data, and cold data warehouses.
+
+Many streaming packages and modules support JSON serialization and deserialization. While the data contained in JSON documents can ultimately be stored in more performance-optimized formats such as Parquet or Avro, they serve as raw data, which is very important for data processing (if necessary).
+
+Pros and cons of the format:
+
+➕ JSON supports hierarchical structures, simplifying the storage of related data in a single document and presenting complex relationships;
+
+➕ Most languages provide simplified JSON serialization libraries or built-in support for JSON serialization/deserialization;
+
+➕ JSON supports lists of objects, helping to avoid chaotic list conversion to a relational data model;
+
+➕ JSON is a widely used file format for NoSQL databases such as MongoDB, Couchbase, and Azure Cosmos DB;
+
+➕ Built-in support in most modern tools;
+
+➖ JSON consumes more memory due to repeatable column names;
+
+➖ Poor support for special characters;
+
+➖ JSON is not very splittable;
+
+➖ JSON lacks indexing;
+
+➖ It is less compact as compared to binary formats.
+
+Parquet
+Since the data are stored in columns, they can be highly compressed (compression algorithms work better with data with low entropy of information, which is usually contained in columns) and can be separated. Developers of the format claim that this storage format is ideal for solving Big Data problems.
+
+Unlike CSV and JSON, Parquet files are binary files that contain metadata about their contents. Therefore, without reading/parsing the contents of the file(s), Spark can simply rely on metadata to determine column names, compression/encoding, data types, and even some basic statistical characteristics. Column metadata for a Parquet file is stored at the end of the file, which allows for fast, single-pass writing.
+
+Parquet is optimized for the paradigm Write Once Read Many (WORM). It writes slowly but reads incredibly quickly, especially when you only access a subset of columns. Parquet is good choice for heavy workloads when reading portions of data. For cases where you need to work with whole rows of data, you should use a format like CSV or AVRO.
+
+Pros and cons of the format:
+
+➕ Parquet is a columnar format. Only the required columns will be retrieved/read, this reduces disk I/O. The concept is called projection pushdown;
+
+➕ The scheme travels with the data, so the data is self-describing;
+
+➕ Although it is designed for HDFS, data can be stored on other file systems such as GlusterFs or NFS;
+
+➕ Parquet just files, which means it's easy to work, move, backup and replicate them;
+
+➕ Built-in support in Spark makes it easy to simply take and save a file in storage;
+
+➕ Parquet provides very good compression up to 75% when using even compression formats like snappy);
+
+➕ As practice shows, this format is the fastest for read-heavy processes compared to other file formats;
+
+➕ Parquet is well suited for data storage solutions where aggregation on a particular column over a huge set of data is required;
+
+➕ Parquet can be read and written using the Avro API and Avro Schema (which gives the idea of storing all raw data in the Avro format, but all processed data in parquet);
+
+➕ It also provides predicate pushdown, thus reducing the further cost of transferring data from storage to the processing engine for filtering;
+
+➖ The column-based design makes you think about the schema and data types;
+
+➖ Parquet does not always have built-in support in tools other than Spark;
+
+➖ It does not support data modification (Parquet files are immutable) and scheme evolution. Of course, Spark knows how to combine the schema if you change it over time (you must specify a special option while reading), but you can only change something in an existing file by overwriting it.
+
+Predicate Pushdown / Filter Pushdown
+The basic idea of predicate pushdown is that certain parts of queries (predicates) can be "pushed" to where the data is stored. For example, when we give some filtering criteria, the data storage tries to filter out the records at the time of reading. The advantage of predicate pushdown is that there are fewer disk i/o operations and therefore overall performance is better. Otherwise, all data will be written to memory, and then filtering will have to be performed, resulting in higher memory requirements.
+
+This optimization can significantly reduce the request/processing time by filtering the data earlier than later. Depending on the processing framework, the predicate pushdown may optimize the query by performing such actions as filtering data before it is transferred over the network, filtering data before it is loaded into memory, or skipping reading entire files or pieces of files.
+
+This concept is followed by most DBMS, as well as big data storage formats such as Parquet and ORC.
+
+Projection Pushdown
+Predicate Pushdown / Filter Pushdown
+
+When reading data from the data storage, only those columns that are required will be read, not all fields will be read. Typically, column formats such as Parquets and ORC follow this concept, resulting in better I/O performance.
+
+Avro
+Apache Avro was released by the Hadoop working group in 2009. It is a row-based format that has a high degree of splitting. It is also described as a data serialization system similar to Java Serialization. The schema is stored in JSON format, while the data is stored in binary format, which minimizes file size and maximizes efficiency. Avro has reliable support for schema evolution by managing added, missing, and changed fields. This allows old software to read new data, and new software to read old data — it is a critical feature if your data can change.
+
+Avro's ability to manage scheme evolution allows components to be updated independently, at different times, with a low risk of incompatibility. This eliminates the need for applications to write if-else statements to handle different versions of schema and eliminates the need for the developer to look at old code to understand the old schema. Since all versions of the schema are stored in a human-readable JSON header, it is easy to understand all the fields available to you.
+
+Since the schema is stored in JSON and the data is stored in binary form, Avro is a relatively compact option for both permanent storage and wire transfer. Since Avro is a row-based format, it is the preferred format for handling large amounts of records as it is easy to add new rows.
+
+Pros and cons of the format:
+
+➕ Avro is a linguistic-neutral serialization of data.
+
+➕ Avro stores the schema in a file header, so the data is self-describing;
+
+➕ Easy and fast data serialization and deserialization, which can provide very good ingestion performance;
+
+➕ As with the Sequence files, the Avro files also contain synchronization markers to separate blocks. This makes it highly splittable;
+
+➕ Files formatted in Avro are splittable and compressible and are therefore a good candidate for data storage in the Hadoop ecosystem;
+
+➕ The schema used to read Avro files does not necessarily have to be the same as the one used to write the files. This allows new fields to be added independently of each other;
+
+➖ Makes you think about the schema and data types;
+
+➖ Its data is not human-readable;
+
+➖ Not integrated into every programming language.
+
+Summary
+Properties	CSV	JSON	Parquet	Avro
+Columnar	❌	❌	✅	❌
+Compressable	✅	✅	✅	✅
+Splittable	✅*	✅*	✅	✅
+Readable	✅	✅	❌	❌
+Complex data structure	❌	✅	✅	✅
+Schema evolution	❌	❌	✅	✅
+* JSON has the same conditions about splittability when compressed as CSV with one extra difference. When wholeFile option is set to true (re: SPARK-18352), JSON files are NOT splittable.
+
+Performance tests
+In order to somehow compare the formats with each other, I created a set of tests using Netflix dataset. This is a so-called narrow data set — it consists of only three columns and a lot of rows.
+
+All the tests were run on my laptop (I won't show you the characteristics, I think they are irrelevant for comparison) using Pyspark 2.4.3 with spark-submit running. The experiments were done 3 times for each format used and then averaged. Test scripts are publicly available: here.
+
+Space utilization, per format
+The main function of any file is to store data. For the Big Data field, it is necessary to store large volumes of different data types for different purposes. How much this data takes up space will be easily converted into money they will cost.
+
+Space utilization per format
+
+Note that the entire default configuration was used and compression was not used anywhere. I admit that an aggressively configured gzip for a CSV file can take up no more than 1.5 GB. Thus, the advantage of binary formats will not be so dramatic.
+
+The obvious conclusion — do not use JSON to store the raw data.
+
+Ingestion, latency per format
+Next, I tried to save data in various file formats and calculate the latency.
+
+Ingestion latency per format
+
+It may turn out that in most cases it is a matter of reading 2 gigabytes of source data and everything else takes 5-10 seconds (I have not checked Spark's user interface). Anyway, the result is clear — plain text will always be easier to write than encoding and gathering metadata for more complex formats (such as Avro and Parquet).
+
+Random data lookup, the latency per format
+In this test, I try to understand the latency of obtaining records by providing a record identifier (using a 'sample').
+
+Random data lookup latency per format
+
+An individual record, stored in CSV, JSON, and Avro formats, can only be got by brute force scan throughout the data partition. In Parquet, the columnar nature of the format allows scanning partitions relatively quickly. Thanks to the projection and predicate pushdown the input dataset is significantly reduced.
+
+Basic statistics, per format
+This test shows how quickly we can calculate the statistics of frequently used columns (min, max, count).
+
+Basic statistics per format
+
+Parquet and Avro use their own hack method when reading metadata is enough to get statistics. For CSV and JSON the situation is worse — they must parse every byte.
+
+Processing data, per format
+This test uses the time column filtering function.
+
+Processing data per format
+
+Understandably, formats that have data types inside of them can handle the work faster.
+
+Grouping by column, per format
+This test uses a more complex transformation — grouping by columns.
+
+Grouping by column per format
+
+It's obvious that formats that don't need to parse columns can do it faster.
+
+Get distinct values, latency per format
+This test will try to measure the latency of getting distinct values in the column.
+
+Get distinct values latency per format
+
+The result looks exactly the same as in a random data search, but the operation distinct significantly complicates the task. For simplicity, we can assume that it adds a reduce phase to the task, which means that the overhead costs of data exchange between executors are also measured.
+
+Lessons learned from performance tests
+👉 JSON is the standard for communication on the Internet. APIs and websites communicate constantly with JSON thanks to its convenient features such as clearly defined schemes, and the ability to store complex data.
+
+👉 Whatever you do, never use the JSON format. In almost all tests it proved to be the worst format to use.
+
+👉 Parquet and Avro are definitely more optimized for the needs of Big Data — splitability, compression support, and excellent support for complex data structures, but readability and writing speed are quite poor.
+
+👉 The unit of paralleling data access in the case of Parquet and Avro is an HDFS file block — this makes it very easy to distribute the processing evenly across all resources available on the Hadoop cluster.
+
+👉 When choosing a data storage format in Hadoop, you need to consider many factors, such as integration with third-party applications, the evolution of the schema, and support for specific data types ... But if you put performance in the first place, the above tests prove convincingly that Parquet is your best choice.
+
+👉 Notably, the algorithms compression have played a significant role not only in reducing the amount of data but also in improving performance when swallowing and accessing data. But this part of the picture has not been tested;
+
+👉 Apache Avro proved to be a fast universal encoder for structured data. With very efficient serialization and deserialization, this format can guarantee very good performance when all the attributes of a record are accessed at the same time.
+
+👉 CSV should typically be the fastest to write, JSON the easiest to understand for humans, and Parquet the fastest to read a subset of columns, while Avro is the fastest to read all columns at once.
+
+👉 According to test data, columnar formats like Apache Parquet delivered very good flexibility between fast data ingestion, fast random data retrieval, and scalable data analytics. In many cases, this provides the additional advantage of simple storage systems, as only one type of technology is needed to store data and maintain different use cases (random access to data and analytics).
+
+💡 Columnar formats are typically used where several columns need to be requested rather than all columns as their column-oriented storage design is well suited for this purpose. On the other hand, row-based formats are used where all fields in a row need to be accessed. This is why Avro is usually used to store the raw data; all fields are usually required during ingestion. Parquet is used after preprocessing for further analytics because usually all fields are no longer required there.
+Additional materials
+Designing Data-Intensive Applications
+Spark: The Definitive Guide
+Learning Spark: Lightning-Fast Data Analytics
+
+Thank you for reading! Curious about something or have thoughts to share? Leave your comment below or follow me via LinkedIn, Substack, or Telegram.
+
+#data-engineering
+Last updated Jul 18 2024
+Support the authorBuy me a coffee
+
+Enjoyed what you just read? Others like these as well:
+
+Spark Partitions
+Anatomy 

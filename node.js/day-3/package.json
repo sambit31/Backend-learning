@@ -1,0 +1,14 @@
+{
+  "name": "day-3",
+  "version": "1.0.0",
+  "main": "event.js",
+
+  
+  "scripts": {
+    "start": "node streams.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
