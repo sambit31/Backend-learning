@@ -66,5 +66,3 @@ curl -H "Authorization: <token>" http://localhost:8080/private/dashboard
 ```
 
 
-
-THANK YOU>>>
