@@ -1,0 +1,6 @@
+[2025-06-12T19:02:37.985Z] GET /public
+[2025-06-12T19:17:05.447Z] GET /public/generate-token
+[2025-06-12T19:53:06.502Z] GET /private/dashboard
+[2025-06-12T19:54:17.920Z] GET /public/generate-token
+[2025-06-12T19:54:48.548Z] GET /private/dashboard
+[2025-06-12T19:55:02.815Z] GET /private/dashboard
