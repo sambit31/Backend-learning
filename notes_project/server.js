@@ -5,20 +5,21 @@ import { noteModel } from "./src/models/note.model.js";
 const app = express();
 const PORT = 8080;
 
-app.use(express.json())
+app.use(express.json());
+
 ConnectToDb();
 
-let notes = []
 
 app.get("/",(req,res)=>{
     res.send("welcome");
-})
+});
 
 app.post("/notes",async (req, res) => {
     try {
         const { title, content } = req.body;
 
         const newNote = await noteModel.create({ title, content });
+
         res.status(201).json({
             message: "Note created successfully",
             note: newNote,
@@ -30,14 +31,14 @@ app.post("/notes",async (req, res) => {
 });
 
 
-app.get("/notes",async (res, req)=>{
+app.get("/notes",async (req, res)=>{
     try {
         const notes = await noteModel.find()
 
-        req.json({
+        res.json({
             message:"Notes fetch sucessfully",
-            notes
-        })
+            notes:notes,
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error creating note" });
@@ -45,21 +46,47 @@ app.get("/notes",async (res, req)=>{
 })
 
 
-app.delete("/notes/:index",(req,res)=>{
-    const index = req.params.index;
-    delete notes[index]
-    res.json({
-        message:"note deleted successfully"
-    })
-})
+app.delete("/notes/:id", async (req, res) => {
+    try {
+        const noteId = req.params.id;
 
-app.post("/notes",(req,res)=>{
-    console.log(req.body);  
-    notes.push(req.body)
-    res.json({
-        message:"note created sucessfully"
-    })
-})
+        const deleteNote = await noteModel.findByIdAndDelete({_id:noteId});
+        if(!deleteNote) return res.status(404).json({ message: "Note not found" });
+ 
+        res.json({ message: "Note deleted successfully" });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error creating note" });
+    }
+});
+
+
+
+app.patch("/notes/:id", async (req, res) => {
+    try {
+        const noteId = req.params.id;
+        const { title, content } = req.body;
+        const updatedNote = await noteModel.findOneAndUpdate(
+            { _id: noteId },      // filter
+            { title, content },   // updated fields
+            { new: true }         // return updated note
+        );
+
+        if (!updatedNote) {
+            return res.status(404).json({ message: "Note not found" });
+        }
+
+        res.json({
+            message: "Note updated successfully",
+            note: updatedNote
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error updating note" });
+    }
+});
 
 
 app.listen(PORT,()=>{
